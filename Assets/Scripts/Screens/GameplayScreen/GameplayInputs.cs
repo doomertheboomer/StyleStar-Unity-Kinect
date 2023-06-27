@@ -8,6 +8,9 @@ using UnityEngine.SceneManagement;
 
 public class GameplayInputs : MonoBehaviour
 {
+    public GameObject FootSpriteL;
+    public GameObject FootSpriteR;
+
     // Start is called before the first frame update
     void Start()
     {
@@ -33,7 +36,7 @@ public class GameplayInputs : MonoBehaviour
             else
                 Globals.MusicManager.Play();
         }
-        if(Input.GetButtonDown("Left"))
+        if (Input.GetButtonDown("Left"))
         {
             GameState.TransitionState = TransitionState.EnteringLoadingScreen;
             GameState.Destination = Mode.Results;
@@ -92,37 +95,26 @@ public class GameplayInputs : MonoBehaviour
         var motionList = songNotes.Motions.Where(x => Math.Abs(x.BeatLocation - currentBeat) < 2 && !x.HitResult.WasHit).ToList();
         motionList.Sort((x, y) => Math.Abs(x.BeatLocation - currentBeat).CompareTo(Math.Abs(y.BeatLocation - currentBeat)));
 
+        // Commented out the old routine, try kinect
         // Check if we've hit any steps
         foreach (var step in stepList)
         {
+            Debug.Log("Left: " + step.LaneIndex + " Right: " + (step.LaneIndex + step.Width));
+
+
             // First check to see if they've passed the miss mark
             //var stepTimeMS = ((step.BeatLocation - currentBeat) * 60 / Globals.CurrentBpm);
             var stepTimeMS = Globals.GetSecAtBeat(step.BeatLocation) - currentTime;
-            if (stepTimeMS < -NoteTiming.Bad)
+            if (Math.Abs(stepTimeMS) < NoteTiming.AutoTolerance)
             {
-                step.HitResult.WasHit = true;   // Let everyone else know this note has been resolved
-                step.HitResult.Difference = Timing.MissFlag;
-                songNotes.AddToScore(NoteType.Step, step.HitResult.Difference);
-            }
-            else if (GameState.CurrentSettings.AutoSetting == Settings.AutoMode.Auto)
-            {
-                if (Math.Abs(stepTimeMS) < NoteTiming.AutoTolerance)
+                if (((FootSpriteL.transform.position.x >= ((0.375 * step.LaneIndex) - 3)) && (FootSpriteL.transform.position.x <= ((0.375 * (step.LaneIndex + step.Width)) - 3))) || ((FootSpriteR.transform.position.x >= ((0.375 * step.LaneIndex) - 3)) && (FootSpriteR.transform.position.x <= ((0.375 * (step.LaneIndex + step.Width)) - 3))))
                 {
-                    step.HitResult.WasHit = true;
+                    step.HitResult.WasHit = true;   // Let everyone else know this note has been resolved
                     step.HitResult.Difference = 0;
-                    //gradeCollection.Set(gameTime, step);
                     songNotes.AddToScore(NoteType.Step, step.HitResult.Difference);
                 }
             }
-            else if (TouchCollection.Points.Count > 0)
-            {
-
-                if (TouchCollection.CheckHit(step))
-                {
-                    //gradeCollection.Set(gameTime, step);
-                    songNotes.AddToScore(NoteType.Step, step.HitResult.Difference);
-                }
-            }
+            
         }
 
         // Check if we've hit or are still hitting any holds
@@ -133,26 +125,12 @@ public class GameplayInputs : MonoBehaviour
             {
                 //var stepTimeMS = ((hold.StartNote.BeatLocation - currentBeat) * 60 / Globals.CurrentBpm);
                 var stepTimeMS = Globals.GetSecAtBeat(hold.StartNote.BeatLocation) - currentTime;
-                if (stepTimeMS < -NoteTiming.Bad)
+                if (Math.Abs(stepTimeMS) < NoteTiming.AutoTolerance)
                 {
-                    hold.StartNote.HitResult.WasHit = true; // Let everyone else know this note has been resolved
-                    hold.StartNote.HitResult.Difference = Timing.MissFlag;
-                    songNotes.AddToScore(NoteType.Hold, hold.StartNote.HitResult.Difference);
-                }
-                else if (GameState.CurrentSettings.AutoSetting == Settings.AutoMode.Auto)
-                {
-                    if (Math.Abs(stepTimeMS) < NoteTiming.AutoTolerance)
+                    if (((FootSpriteL.transform.position.x >= ((0.375 * hold.StartNote.LaneIndex) - 3)) && (FootSpriteL.transform.position.x <= ((0.375 * (hold.StartNote.LaneIndex + hold.StartNote.Width)) - 3))) || ((FootSpriteR.transform.position.x >= ((0.375 * hold.StartNote.LaneIndex) - 3)) && (FootSpriteR.transform.position.x <= ((0.375 * (hold.StartNote.LaneIndex + hold.StartNote.Width)) - 3))))
                     {
                         hold.StartNote.HitResult.WasHit = true;
                         hold.StartNote.HitResult.Difference = 0;
-                        //gradeCollection.Set(gameTime, hold.StartNote);
-                        songNotes.AddToScore(NoteType.Hold, hold.StartNote.HitResult.Difference);
-                    }
-                }
-                else if (TouchCollection.Points.Count > 0)
-                {
-                    if (TouchCollection.CheckHit(hold.StartNote))
-                    {
                         //gradeCollection.Set(gameTime, hold.StartNote);
                         songNotes.AddToScore(NoteType.Hold, hold.StartNote.HitResult.Difference);
                     }
@@ -210,7 +188,7 @@ public class GameplayInputs : MonoBehaviour
             }
             //else if (GameState.CurrentSettings.AutoSetting == Settings.AutoMode.Auto ||
             //    (GameState.CurrentSettings.AutoSetting == Settings.AutoMode.AutoDown && motion.Motion == Motion.Down))
-            else if (GameState.CurrentSettings.AutoSetting == Settings.AutoMode.Auto )
+            else if (GameState.CurrentSettings.AutoSetting == Settings.AutoMode.Auto)
             {
                 if (Math.Abs(motionTimeMS) < NoteTiming.AutoTolerance)
                 {
@@ -220,25 +198,158 @@ public class GameplayInputs : MonoBehaviour
                     songNotes.AddToScore(NoteType.Motion, motion.HitResult.Difference);
                 }
             }
-            //else if (motion.Motion == Motion.Down && !double.IsNaN(motionCollection.DownBeat))
-            //{
-            //    if (motionCollection.CheckHit(motion))
-            //    {
-            //        gradeCollection.Set(gameTime, motion);
-            //        songNotes.AddToScore(NoteType.Motion, motion.HitResult.Difference);
-            //    }
-            //}
-            //else if (motion.Motion == Motion.Up && motionTimeMS < MotionTiming.JumpPerfectCheck)
-            //{
-            //    // If there's no feet on the pad within the perfect window, it counts
-            //    if (touchCollection.Points.Count == 0)
-            //    {
-            //        motion.HitResult.WasHit = true;
-            //        motion.HitResult.Difference = (float)motionTimeMS;
-            //        gradeCollection.Set(gameTime, motion);
-            //        songNotes.AddToScore(NoteType.Motion, motion.HitResult.Difference);
-            //    }
-            //}
+
+
+            /*
+            // Check if we've hit any steps
+            foreach (var step in stepList)
+            {
+                // First check to see if they've passed the miss mark
+                //var stepTimeMS = ((step.BeatLocation - currentBeat) * 60 / Globals.CurrentBpm);
+                var stepTimeMS = Globals.GetSecAtBeat(step.BeatLocation) - currentTime;
+                if (stepTimeMS < -NoteTiming.Bad)
+                {
+                    step.HitResult.WasHit = true;   // Let everyone else know this note has been resolved
+                    step.HitResult.Difference = Timing.MissFlag;
+                    songNotes.AddToScore(NoteType.Step, step.HitResult.Difference);
+                }
+                else if (GameState.CurrentSettings.AutoSetting == Settings.AutoMode.Auto)
+                {
+                    if (Math.Abs(stepTimeMS) < NoteTiming.AutoTolerance)
+                    {
+                        step.HitResult.WasHit = true;
+                        step.HitResult.Difference = 0;
+                        //gradeCollection.Set(gameTime, step);
+                        songNotes.AddToScore(NoteType.Step, step.HitResult.Difference);
+                    }
+                }
+                else if (TouchCollection.Points.Count > 0)
+                {
+
+                    if (TouchCollection.CheckHit(step))
+                    {
+                        //gradeCollection.Set(gameTime, step);
+                        songNotes.AddToScore(NoteType.Step, step.HitResult.Difference);
+                    }
+                }
+            }
+
+            // Check if we've hit or are still hitting any holds
+            foreach (var hold in holdList)
+            {
+                // Check start note if necessary
+                if (!hold.StartNote.HitResult.WasHit)
+                {
+                    //var stepTimeMS = ((hold.StartNote.BeatLocation - currentBeat) * 60 / Globals.CurrentBpm);
+                    var stepTimeMS = Globals.GetSecAtBeat(hold.StartNote.BeatLocation) - currentTime;
+                    if (stepTimeMS < -NoteTiming.Bad)
+                    {
+                        hold.StartNote.HitResult.WasHit = true; // Let everyone else know this note has been resolved
+                        hold.StartNote.HitResult.Difference = Timing.MissFlag;
+                        songNotes.AddToScore(NoteType.Hold, hold.StartNote.HitResult.Difference);
+                    }
+                    else if (GameState.CurrentSettings.AutoSetting == Settings.AutoMode.Auto)
+                    {
+                        if (Math.Abs(stepTimeMS) < NoteTiming.AutoTolerance)
+                        {
+                            hold.StartNote.HitResult.WasHit = true;
+                            hold.StartNote.HitResult.Difference = 0;
+                            //gradeCollection.Set(gameTime, hold.StartNote);
+                            songNotes.AddToScore(NoteType.Hold, hold.StartNote.HitResult.Difference);
+                        }
+                    }
+                    else if (TouchCollection.Points.Count > 0)
+                    {
+                        if (TouchCollection.CheckHit(hold.StartNote))
+                        {
+                            //gradeCollection.Set(gameTime, hold.StartNote);
+                            songNotes.AddToScore(NoteType.Hold, hold.StartNote.HitResult.Difference);
+                        }
+                    }
+                }
+
+                // Check any shuffles separately
+                var shuffles = hold.Notes.Where(x => x.Type == NoteType.Shuffle && x.HitResult.WasHit == false);
+                foreach (var shuffle in shuffles)
+                {
+                    // Check window around shuffle and see if the foot is moving in the correct direction
+                    var stepTimeMS = Globals.GetSecAtBeat(shuffle.BeatLocation) - currentTime;
+                    if (stepTimeMS < -NoteTiming.Bad)
+                    {
+                        shuffle.HitResult.WasHit = true; // Let everyone else know this note has been resolved
+                        shuffle.HitResult.Difference = Timing.MissFlag;
+                        songNotes.AddToScore(NoteType.Hold, shuffle.HitResult.Difference);
+                    }
+                    else if (GameState.CurrentSettings.AutoSetting == Settings.AutoMode.Auto)
+                    {
+                        if (Math.Abs(stepTimeMS) < NoteTiming.AutoTolerance)
+                        {
+                            shuffle.HitResult.WasHit = true;
+                            shuffle.HitResult.Difference = 0;
+                            songNotes.AddToScore(NoteType.Hold, shuffle.HitResult.Difference);
+                        }
+                    }
+                    else if (TouchCollection.Points.Count > 0)
+                    {
+                        if (TouchCollection.CheckHit(shuffle))
+                        {
+                            songNotes.AddToScore(NoteType.Hold, shuffle.HitResult.Difference);
+                        }
+                    }
+                }
+
+                // Let the note figure out itself whether it's being held and scoring
+                var holdResult = hold.CheckHold(currentBeat);
+                if (holdResult == HitState.Hit)
+                    songNotes.AddToScore(NoteType.Hold, NoteTiming.Perfect);
+                else if (holdResult == HitState.Miss)
+                    songNotes.AddToScore(NoteType.Hold, Timing.MissFlag);
+            }
+
+            // Check if we've hit any motions
+            foreach (var motion in motionList)
+            {
+                //var motionTimeMS = ((motion.BeatLocation - currentBeat) * 60 / Globals.CurrentBpm);
+                var motionTimeMS = Globals.GetSecAtBeat(motion.BeatLocation) - currentTime;
+                if (motionTimeMS < -MotionTiming.Miss)
+                {
+                    motion.HitResult.WasHit = true;
+                    motion.HitResult.Difference = Timing.MissFlag;
+                    songNotes.AddToScore(NoteType.Motion, motion.HitResult.Difference);
+                }
+                //else if (GameState.CurrentSettings.AutoSetting == Settings.AutoMode.Auto ||
+                //    (GameState.CurrentSettings.AutoSetting == Settings.AutoMode.AutoDown && motion.Motion == Motion.Down))
+                else if (GameState.CurrentSettings.AutoSetting == Settings.AutoMode.Auto )
+                {
+                    if (Math.Abs(motionTimeMS) < NoteTiming.AutoTolerance)
+                    {
+                        motion.HitResult.WasHit = true;
+                        motion.HitResult.Difference = 0;
+                        //gradeCollection.Set(gameTime, motion);
+                        songNotes.AddToScore(NoteType.Motion, motion.HitResult.Difference);
+                    }
+                }
+                //else if (motion.Motion == Motion.Down && !double.IsNaN(motionCollection.DownBeat))
+                //{
+                //    if (motionCollection.CheckHit(motion))
+                //    {
+                //        gradeCollection.Set(gameTime, motion);
+                //        songNotes.AddToScore(NoteType.Motion, motion.HitResult.Difference);
+                //    }
+                //}
+                //else if (motion.Motion == Motion.Up && motionTimeMS < MotionTiming.JumpPerfectCheck)
+                //{
+                //    // If there's no feet on the pad within the perfect window, it counts
+                //    if (touchCollection.Points.Count == 0)
+                //    {
+                //        motion.HitResult.WasHit = true;
+                //        motion.HitResult.Difference = (float)motionTimeMS;
+                //        gradeCollection.Set(gameTime, motion);
+                //        songNotes.AddToScore(NoteType.Motion, motion.HitResult.Difference);
+                //    }
+                //}
+            }
+            */
         }
     }
 }
